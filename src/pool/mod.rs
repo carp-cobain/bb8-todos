@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use bb8::{CustomizeConnection, ManageConnection, Pool};
+use bb8::{CustomizeConnection, ManageConnection, Pool, RunError};
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::{
     config::Config,
@@ -119,8 +119,11 @@ impl From<Error> for crate::Error {
     }
 }
 
-impl<T> From<bb8::RunError<T>> for crate::Error {
-    fn from(_: bb8::RunError<T>) -> Self {
-        crate::Error::internal("bb8 runtime error".into())
+impl<E: std::error::Error> From<RunError<E>> for crate::Error {
+    fn from(err: RunError<E>) -> Self {
+        match err {
+            RunError::TimedOut => crate::Error::internal("connection timed out".into()),
+            RunError::User(err) => crate::Error::internal(err.to_string()),
+        }
     }
 }
