@@ -1,0 +1,31 @@
+[package]
+name = "bb8-todos"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+axum = { version = "0.7", default-features = false, features = [
+    "json",
+    "query",
+    "http1",
+    "tokio",
+] }
+bb8 = "0.8"
+bb8-postgres = "0.8"
+dotenvy = "0.15"
+futures = "0.3"
+futures-util = "0.3"
+mimalloc = { version = "0.1", default-features = false }
+num_cpus = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1"
+tokio = { version = "1.33", features = ["full"] }
+tokio-postgres = "0.7"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+codegen-units = 1
+lto = 'thin'
+panic = 'abort'
