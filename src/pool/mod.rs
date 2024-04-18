@@ -23,7 +23,7 @@ pub async fn new(db_url: &str) -> PgPool {
     let pg_mgr = CustomPgConnManager::new(config, NoTls);
     Pool::builder()
         .connection_customizer(Box::new(Customizer))
-        .max_size((num_cpus::get() * 2 + 1) as u32)
+        .max_size(num_cpus::get() as u32)
         .build(pg_mgr)
         .await
         .expect("build pool error")
