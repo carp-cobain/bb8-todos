@@ -8,7 +8,7 @@ const SQL_INSERT_STORY: &str = "insert into stories (name) values ($1) returning
 const SQL_DELETE_STORY: &str = "delete from stories where id = $1";
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
-pub enum Name {
+pub enum StatementKey {
     SelectStories,
     SelectStory,
     InsertStory,

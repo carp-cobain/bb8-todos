@@ -1,5 +1,5 @@
 use super::Repo;
-use crate::pool::statements::Name::{DeleteStory, InsertStory, SelectStories, SelectStory};
+use crate::pool::statements::StatementKey::{DeleteStory, InsertStory, SelectStories, SelectStory};
 use crate::{domain::Story, Error, Result};
 use futures::StreamExt;
 use tokio::pin;

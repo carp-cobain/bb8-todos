@@ -5,12 +5,14 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use bb8::{CustomizeConnection, ManageConnection, Pool};
 use bb8_postgres::PostgresConnectionManager;
-use tokio_postgres::config::Config;
-use tokio_postgres::tls::{MakeTlsConnect, TlsConnect};
-use tokio_postgres::{Client, Error, NoTls, Socket, Statement};
+use tokio_postgres::{
+    config::Config,
+    tls::{MakeTlsConnect, TlsConnect},
+    Client, Error, NoTls, Socket, Statement,
+};
 
 pub mod statements;
-use statements::{Name, Statements};
+use statements::{StatementKey, Statements};
 
 /// Custom connection pool type
 pub type PgPool = Pool<CustomPgConnManager<NoTls>>;
@@ -36,17 +38,20 @@ impl CustomizeConnection<CustomPgConn, Error> for Customizer {
         // Prepare and cache queries (validates sql as well)
         let stmts = Statements::prepare(conn).await;
         conn.ps_cache
-            .insert(Name::SelectStories, stmts.select_stories);
-        conn.ps_cache.insert(Name::SelectStory, stmts.select_story);
-        conn.ps_cache.insert(Name::InsertStory, stmts.insert_story);
-        conn.ps_cache.insert(Name::DeleteStory, stmts.delete_story);
+            .insert(StatementKey::SelectStories, stmts.select_stories);
+        conn.ps_cache
+            .insert(StatementKey::SelectStory, stmts.select_story);
+        conn.ps_cache
+            .insert(StatementKey::InsertStory, stmts.insert_story);
+        conn.ps_cache
+            .insert(StatementKey::DeleteStory, stmts.delete_story);
         Ok(())
     }
 }
 
 pub struct CustomPgConn {
     inner: Client,
-    pub ps_cache: BTreeMap<Name, Statement>,
+    pub ps_cache: BTreeMap<StatementKey, Statement>,
 }
 
 impl CustomPgConn {
