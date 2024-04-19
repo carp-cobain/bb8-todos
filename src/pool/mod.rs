@@ -12,7 +12,10 @@ use tokio_postgres::{
 };
 
 pub mod statements;
-use statements::{StatementKey, Statements};
+use statements::{
+    StatementKey::{self, DeleteStory, InsertStory, SelectStories, SelectStory},
+    Statements,
+};
 
 /// Custom connection pool type
 pub type PgPool = Pool<CustomPgConnManager<NoTls>>;
@@ -37,14 +40,10 @@ impl CustomizeConnection<CustomPgConn, Error> for Customizer {
     async fn on_acquire(&self, conn: &mut CustomPgConn) -> Result<(), Error> {
         // Prepare and cache queries (validates sql as well)
         let stmts = Statements::prepare(conn).await;
-        conn.ps_cache
-            .insert(StatementKey::SelectStories, stmts.select_stories);
-        conn.ps_cache
-            .insert(StatementKey::SelectStory, stmts.select_story);
-        conn.ps_cache
-            .insert(StatementKey::InsertStory, stmts.insert_story);
-        conn.ps_cache
-            .insert(StatementKey::DeleteStory, stmts.delete_story);
+        conn.ps_cache.insert(SelectStories, stmts.select_stories);
+        conn.ps_cache.insert(SelectStory, stmts.select_story);
+        conn.ps_cache.insert(InsertStory, stmts.insert_story);
+        conn.ps_cache.insert(DeleteStory, stmts.delete_story);
         Ok(())
     }
 }
