@@ -3,5 +3,5 @@ create table stories (
     name text not null
 );
 
-alter table stories
-  add constraint check_story_name_length check (char_length(name) <= 100);
+-- alter table stories
+--   add constraint check_story_name_length check (char_length(name) <= 100);

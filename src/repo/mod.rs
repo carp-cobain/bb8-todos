@@ -1,14 +1,13 @@
-use crate::pool::PgPool;
-use std::sync::Arc;
+use crate::db::pool::PgPool;
 
 mod story;
 
 pub struct Repo {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 impl Repo {
-    pub async fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }

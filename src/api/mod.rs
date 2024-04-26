@@ -1,4 +1,4 @@
-use crate::{config::Config, pool::PgPool, repo::Repo};
+use crate::{config::Config, db::pool::PoolBuilder, repo::Repo, Result};
 use axum::Router;
 use std::sync::Arc;
 
@@ -21,14 +21,14 @@ impl Api {
 
 #[derive(Clone)]
 pub struct Ctx {
-    pub config: Arc<Config>,
+    // TODO: Drivers and use-cases go here
     pub repo: Arc<Repo>,
 }
 
 impl Ctx {
-    pub async fn new(config: Arc<Config>, pool: Arc<PgPool>) -> Self {
-        let config = Arc::clone(&config);
-        let repo = Arc::new(Repo::new(Arc::clone(&pool)).await);
-        Self { config, repo }
+    pub async fn init_from_config(config: Arc<Config>) -> Result<Self> {
+        let pool = PoolBuilder::build(&config.db_url, config.db_max_pool_size).await?;
+        let repo = Arc::new(Repo::new(pool));
+        Ok(Self { repo })
     }
 }

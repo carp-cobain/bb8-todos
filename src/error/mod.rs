@@ -1,4 +1,4 @@
-// Http support for errors
+// Http response support for errors
 mod http;
 
 /// Project level error type

@@ -8,4 +8,6 @@ pub fn routes() -> Router<Arc<Ctx>> {
     Router::new()
         .route("/health", get(handler))
         .route("/health/*glob", get(handler))
+        .route("/status", get(handler))
+        .route("/status/*glob", get(handler))
 }

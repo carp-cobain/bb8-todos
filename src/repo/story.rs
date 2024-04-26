@@ -1,6 +1,9 @@
 use super::Repo;
-use crate::pool::statements::StatementKey::{DeleteStory, InsertStory, SelectStories, SelectStory};
-use crate::{domain::Story, Error, Result};
+use crate::{
+    db::sql::statements::StatementKey::{DeleteStory, InsertStory, SelectStories, SelectStory},
+    domain::Story,
+    Error, Result,
+};
 use futures::StreamExt;
 use tokio::pin;
 
@@ -10,7 +13,7 @@ impl Repo {
         tracing::debug!("select_story: {}", id);
 
         let conn = self.pool.get().await?;
-        let select_story = conn.ps_cache.get(&SelectStory).unwrap();
+        let select_story = conn.get_statement(&SelectStory)?;
 
         let stream = conn.query_raw(select_story, &[&id]).await?;
         pin!(stream);
@@ -28,7 +31,7 @@ impl Repo {
         tracing::debug!("select_stories");
 
         let conn = self.pool.get().await?;
-        let select_stories = conn.ps_cache.get(&SelectStories).unwrap();
+        let select_stories = conn.get_statement(&SelectStories)?;
 
         let stream = conn
             .query_raw::<_, _, &[i32; 0]>(select_stories, &[])
@@ -49,7 +52,7 @@ impl Repo {
         tracing::debug!("insert_story: {}", name);
 
         let conn = self.pool.get().await?;
-        let insert_story = conn.ps_cache.get(&InsertStory).unwrap();
+        let insert_story = conn.get_statement(&InsertStory)?;
 
         let stream = conn.query_raw(insert_story, &[&name]).await?;
         pin!(stream);
@@ -67,7 +70,7 @@ impl Repo {
         tracing::debug!("delete_story: {}", id);
 
         let conn = self.pool.get().await?;
-        let delete_story = conn.ps_cache.get(&DeleteStory).unwrap();
+        let delete_story = conn.get_statement(&DeleteStory)?;
 
         conn.execute_raw(delete_story, &[&id])
             .await
