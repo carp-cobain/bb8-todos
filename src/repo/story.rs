@@ -10,7 +10,7 @@ impl Repo {
         tracing::debug!("select_story: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let select_story = conn.prepare_statement(&sql::stories::FETCH).await?;
+        let select_story = conn.prepare_statement(sql::stories::FETCH).await?;
 
         let stream = conn.query_raw(&select_story, &[&id]).await?;
         pin!(stream);
@@ -28,7 +28,7 @@ impl Repo {
         tracing::debug!("select_stories");
 
         let mut conn = self.pool.get().await?;
-        let select_stories = conn.prepare_statement(&sql::stories::SELECT).await?;
+        let select_stories = conn.prepare_statement(sql::stories::SELECT).await?;
 
         let stream = conn
             .query_raw::<_, _, &[i32; 0]>(&select_stories, &[])
@@ -49,7 +49,7 @@ impl Repo {
         tracing::debug!("insert_story: {}", name);
 
         let mut conn = self.pool.get().await?;
-        let insert_story = conn.prepare_statement(&sql::stories::INSERT).await?;
+        let insert_story = conn.prepare_statement(sql::stories::INSERT).await?;
 
         let stream = conn.query_raw(&insert_story, &[&name]).await?;
         pin!(stream);
@@ -67,10 +67,40 @@ impl Repo {
         tracing::debug!("delete_story: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let delete_story = conn.prepare_statement(&sql::stories::DELETE).await?;
+        let delete_tasks = conn.prepare_statement(sql::tasks::DELETE_BY_STORY).await?;
+        let delete_story = conn.prepare_statement(sql::stories::DELETE).await?;
 
-        conn.execute_raw(&delete_story, &[&id])
+        let tx = conn.transaction().await?;
+
+        // Delete all tasks for the story
+        let num_tasks = tx
+            .execute_raw(&delete_tasks, &[&id])
             .await
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+
+        // Delete the story
+        let num_stories = tx
+            .execute_raw(&delete_story, &[&id])
+            .await
+            .map_err(Error::from)?;
+
+        tx.commit().await?;
+
+        Ok(num_tasks + num_stories)
+    }
+
+    /// Update a story.
+    pub async fn update_story(&self, id: i32, name: String) -> Result<Story> {
+        tracing::debug!("update_story: {}, {}", id, name);
+
+        let mut conn = self.pool.get().await?;
+        let update_story = conn.prepare_statement(sql::stories::UPDATE).await?;
+        let num_rows = conn.execute(&update_story, &[&name, &id]).await?;
+
+        if num_rows > 0 {
+            Ok(Story::new(id, name))
+        } else {
+            Err(Error::internal("unable to update story".into()))
+        }
     }
 }

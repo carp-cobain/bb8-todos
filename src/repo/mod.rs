@@ -1,6 +1,7 @@
 use crate::db::pool::PgPool;
 
 mod story;
+mod task;
 
 /// A thin abstraction layer over the database schema.
 /// Maps query results to domain objects.

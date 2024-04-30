@@ -1,6 +1,6 @@
 use crate::Result;
-use std::collections::BTreeMap;
 use std::ops::Deref;
+use std::{collections::BTreeMap, ops::DerefMut};
 use tokio_postgres::{Client, Statement};
 
 /// Custom postgres connection with prepared statement cache.
@@ -37,5 +37,12 @@ impl Deref for PgConn {
     type Target = Client;
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+// Need this for transactions
+impl DerefMut for PgConn {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
