@@ -1,4 +1,7 @@
-use crate::{api::Ctx, domain::Story, Error, Result};
+use crate::{
+    api::{dto::CreateStoryBody, Ctx},
+    Result,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -6,8 +9,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use serde::Deserialize;
-use std::{fmt::Debug, sync::Arc};
+use std::sync::Arc;
 
 /// API routes for stories
 pub fn routes() -> Router<Arc<Ctx>> {
@@ -17,14 +19,14 @@ pub fn routes() -> Router<Arc<Ctx>> {
 }
 
 /// Get story by id
-async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<Json<Story>> {
+async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories/{}", id);
     let story = ctx.repo.select_story(id).await?;
     Ok(Json(story))
 }
 
 /// Get stories by owner
-async fn get_stories(State(ctx): State<Arc<Ctx>>) -> Result<Json<Vec<Story>>> {
+async fn get_stories(State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories");
     let stories = ctx.repo.select_stories().await?;
     Ok(Json(stories))
@@ -51,21 +53,4 @@ async fn delete_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Statu
         }
     }
     StatusCode::NOT_FOUND
-}
-
-/// The POST body for creating stories
-#[derive(Debug, Deserialize)]
-struct CreateStoryBody {
-    name: String,
-}
-
-impl CreateStoryBody {
-    /// Sanitize and validate story name from request body
-    pub fn validate(&self) -> Result<String> {
-        let name = self.name.trim();
-        if name.is_empty() || name.len() > 100 {
-            return Err(Error::invalid_args("name: invalid length"));
-        }
-        Ok(name.to_string())
-    }
 }

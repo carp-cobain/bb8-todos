@@ -1,21 +1,18 @@
-use super::Repo;
-use crate::{
-    db::sql::statements::StatementKey::{DeleteStory, InsertStory, SelectStories, SelectStory},
-    domain::Story,
-    Error, Result,
-};
+use crate::{domain::Story, repo::Repo, Error, Result};
 use futures::StreamExt;
 use tokio::pin;
+
+use crate::db::sql;
 
 impl Repo {
     /// Select a story by id
     pub async fn select_story(&self, id: i32) -> Result<Story> {
         tracing::debug!("select_story: {}", id);
 
-        let conn = self.pool.get().await?;
-        let select_story = conn.get_statement(&SelectStory)?;
+        let mut conn = self.pool.get().await?;
+        let select_story = conn.prepare_statement(&sql::stories::FETCH).await?;
 
-        let stream = conn.query_raw(select_story, &[&id]).await?;
+        let stream = conn.query_raw(&select_story, &[&id]).await?;
         pin!(stream);
 
         if let Some(result) = stream.next().await {
@@ -30,11 +27,11 @@ impl Repo {
     pub async fn select_stories(&self) -> Result<Vec<Story>> {
         tracing::debug!("select_stories");
 
-        let conn = self.pool.get().await?;
-        let select_stories = conn.get_statement(&SelectStories)?;
+        let mut conn = self.pool.get().await?;
+        let select_stories = conn.prepare_statement(&sql::stories::SELECT).await?;
 
         let stream = conn
-            .query_raw::<_, _, &[i32; 0]>(select_stories, &[])
+            .query_raw::<_, _, &[i32; 0]>(&select_stories, &[])
             .await?;
         pin!(stream);
 
@@ -51,10 +48,10 @@ impl Repo {
     pub async fn insert_story(&self, name: String) -> Result<Story> {
         tracing::debug!("insert_story: {}", name);
 
-        let conn = self.pool.get().await?;
-        let insert_story = conn.get_statement(&InsertStory)?;
+        let mut conn = self.pool.get().await?;
+        let insert_story = conn.prepare_statement(&sql::stories::INSERT).await?;
 
-        let stream = conn.query_raw(insert_story, &[&name]).await?;
+        let stream = conn.query_raw(&insert_story, &[&name]).await?;
         pin!(stream);
 
         if let Some(result) = stream.next().await {
@@ -69,10 +66,10 @@ impl Repo {
     pub async fn delete_story(&self, id: i32) -> Result<u64> {
         tracing::debug!("delete_story: {}", id);
 
-        let conn = self.pool.get().await?;
-        let delete_story = conn.get_statement(&DeleteStory)?;
+        let mut conn = self.pool.get().await?;
+        let delete_story = conn.prepare_statement(&sql::stories::DELETE).await?;
 
-        conn.execute_raw(delete_story, &[&id])
+        conn.execute_raw(&delete_story, &[&id])
             .await
             .map_err(Error::from)
     }

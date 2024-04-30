@@ -1,4 +1,4 @@
-use crate::{db::sql::statements::StatementKey, Error, Result};
+use crate::Result;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use tokio_postgres::{Client, Statement};
@@ -7,7 +7,7 @@ use tokio_postgres::{Client, Statement};
 /// Prepared statments must be executed by the client that created them.
 pub struct PgConn {
     pub inner: Client,
-    pub ps_cache: BTreeMap<StatementKey, Statement>,
+    pub ps_cache: BTreeMap<String, Statement>,
 }
 
 impl PgConn {
@@ -19,14 +19,15 @@ impl PgConn {
         }
     }
 
-    /// Helper to get cached prepared statements.
-    pub fn get_statement(&self, key: &StatementKey) -> Result<&Statement> {
-        match self.ps_cache.get(key) {
-            Some(ps) => Ok(ps),
-            None => Err(Error::internal(format!(
-                "prepared statement not found, {:?}",
-                key
-            ))),
+    /// Helper to cache prepared statements.
+    pub async fn prepare_statement(&mut self, sql: &str) -> Result<Statement> {
+        match self.ps_cache.get(sql) {
+            Some(ps) => Ok(ps.to_owned()),
+            None => {
+                let stmt = self.prepare(sql).await?;
+                self.ps_cache.insert(sql.to_string(), stmt.clone());
+                Ok(stmt)
+            }
         }
     }
 }
