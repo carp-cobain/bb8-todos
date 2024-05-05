@@ -19,8 +19,8 @@ impl PgConn {
         }
     }
 
-    /// Helper to cache prepared statements.
-    pub async fn prepare_statement(&mut self, sql: &str) -> Result<Statement> {
+    /// Helper to prepare and cache sql statements.
+    pub async fn prepare_cache(&mut self, sql: &str) -> Result<Statement> {
         match self.ps_cache.get(sql) {
             Some(ps) => Ok(ps.to_owned()),
             None => {

@@ -4,6 +4,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::str::FromStr;
 
 /// Limit name size in http request body.
 const MAX_NAME_LEN: usize = 100;
@@ -46,7 +47,7 @@ impl CreateTaskBody {
         // Collects error messages
         let mut messages = Vec::new();
 
-        // Validate all body params
+        // Validate body params
         let story_id = self.story_id;
         if story_id <= 0 {
             messages.push("story_id: must be > 0".into());
@@ -74,11 +75,15 @@ pub struct PatchTaskBody {
 
 impl PatchTaskBody {
     /// Helper to validate fields to update for a task.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, task: Task) -> Result<(String, Status)> {
         // Make sure at least one field is provided
         if self.name.is_none() && self.status.is_none() {
             return Err(Error::invalid_args("name and/or status must be provided"));
         }
+
+        // Defaults
+        let mut name = task.name;
+        let mut status = task.status;
 
         // Validate
         let mut messages = Vec::new();
@@ -86,28 +91,30 @@ impl PatchTaskBody {
             let n = n.trim();
             if n.is_empty() || n.len() > MAX_NAME_LEN {
                 messages.push("name: invalid length".into());
+            } else {
+                name = n.to_string();
             }
         }
         if let Some(s) = &self.status {
-            let s = s.trim().to_lowercase();
-            if s != "complete" && s != "incomplete" {
+            if let Ok(s) = Status::from_str(s) {
+                status = s;
+            } else {
                 messages.push("status: invalid enum variant".into());
             }
         }
-        if !messages.is_empty() {
-            return Err(Error::InvalidArgs { messages });
+
+        // Determine result of validation
+        if messages.is_empty() {
+            Ok((name, status))
+        } else {
+            Err(Error::InvalidArgs { messages })
         }
-
-        Ok(())
     }
+}
 
-    /// Helper to unwrap fields to update for a task, falling back to existing values.
-    pub fn unwrap(self, task: Task) -> (String, Status) {
-        let name = self.name.unwrap_or(task.name);
-        let status = match self.status {
-            Some(s) => Status::from(s),
-            None => task.status,
-        };
-        (name, status)
-    }
+// The query parameters for getting a page of rows
+#[derive(Debug, Deserialize, Default)]
+pub struct PagingParams {
+    // Page id (last accessed page's max id)
+    pub pid: Option<i32>,
 }

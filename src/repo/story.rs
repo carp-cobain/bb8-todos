@@ -10,7 +10,7 @@ impl Repo {
         tracing::debug!("select_story: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let select_story = conn.prepare_statement(sql::stories::FETCH).await?;
+        let select_story = conn.prepare_cache(sql::stories::FETCH).await?;
 
         let stream = conn.query_raw(&select_story, &[&id]).await?;
         pin!(stream);
@@ -24,15 +24,13 @@ impl Repo {
     }
 
     /// Select a page of stories
-    pub async fn select_stories(&self) -> Result<Vec<Story>> {
+    pub async fn select_stories(&self, paging_id: i32) -> Result<Vec<Story>> {
         tracing::debug!("select_stories");
 
         let mut conn = self.pool.get().await?;
-        let select_stories = conn.prepare_statement(sql::stories::SELECT).await?;
+        let select_stories = conn.prepare_cache(sql::stories::SELECT).await?;
 
-        let stream = conn
-            .query_raw::<_, _, &[i32; 0]>(&select_stories, &[])
-            .await?;
+        let stream = conn.query_raw(&select_stories, &[paging_id]).await?;
         pin!(stream);
 
         let mut stories = Vec::with_capacity(10);
@@ -49,7 +47,7 @@ impl Repo {
         tracing::debug!("insert_story: {}", name);
 
         let mut conn = self.pool.get().await?;
-        let insert_story = conn.prepare_statement(sql::stories::INSERT).await?;
+        let insert_story = conn.prepare_cache(sql::stories::INSERT).await?;
 
         let stream = conn.query_raw(&insert_story, &[&name]).await?;
         pin!(stream);
@@ -67,8 +65,8 @@ impl Repo {
         tracing::debug!("delete_story: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let delete_tasks = conn.prepare_statement(sql::tasks::DELETE_BY_STORY).await?;
-        let delete_story = conn.prepare_statement(sql::stories::DELETE).await?;
+        let delete_tasks = conn.prepare_cache(sql::tasks::DELETE_BY_STORY).await?;
+        let delete_story = conn.prepare_cache(sql::stories::DELETE).await?;
 
         let tx = conn.transaction().await?;
 
@@ -94,9 +92,9 @@ impl Repo {
         tracing::debug!("update_story: {}, {}", id, name);
 
         let mut conn = self.pool.get().await?;
-        let update_story = conn.prepare_statement(sql::stories::UPDATE).await?;
-        let num_rows = conn.execute(&update_story, &[&name, &id]).await?;
+        let update_story = conn.prepare_cache(sql::stories::UPDATE).await?;
 
+        let num_rows = conn.execute(&update_story, &[&name, &id]).await?;
         if num_rows > 0 {
             Ok(Story::new(id, name))
         } else {

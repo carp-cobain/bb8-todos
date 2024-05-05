@@ -1,4 +1,6 @@
+use crate::Error;
 use serde::Serialize;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Story {
@@ -12,28 +14,30 @@ impl Story {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
     Complete,
+    #[default]
     Incomplete,
 }
 
-impl From<String> for Status {
-    fn from(value: String) -> Self {
-        if value.trim().to_lowercase() == "complete" {
-            Self::Complete
-        } else {
-            Self::Incomplete
+impl FromStr for Status {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Error> {
+        match s.trim().to_lowercase().as_str() {
+            "complete" => Ok(Self::Complete),
+            "incomplete" => Ok(Self::Incomplete),
+            _ => Err(Error::invalid_args("invalid enum variant".into())),
         }
     }
 }
 
-impl From<Status> for String {
-    fn from(status: Status) -> Self {
-        match status {
-            Status::Complete => "complete".into(),
-            _ => "incomplete".into(),
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Self::Complete => f.write_str("complete"),
+            Self::Incomplete => f.write_str("incomplete"),
         }
     }
 }
@@ -47,8 +51,7 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(id: i32, story_id: i32, name: String, status_str: String) -> Self {
-        let status = Status::from(status_str);
+    pub fn new(id: i32, story_id: i32, name: String, status: Status) -> Self {
         Self {
             id,
             story_id,

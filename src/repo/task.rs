@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{
     domain::{Status, Task},
     repo::Repo,
@@ -10,7 +12,9 @@ use crate::db::sql;
 /// Row mapper for the task domain object.
 impl From<&Row> for Task {
     fn from(row: &Row) -> Self {
-        Task::new(row.get(0), row.get(1), row.get(2), row.get(3))
+        let status_str: &str = row.get(3);
+        let status = Status::from_str(status_str).unwrap_or_default();
+        Task::new(row.get(0), row.get(1), row.get(2), status)
     }
 }
 
@@ -20,7 +24,7 @@ impl Repo {
         tracing::debug!("select_task: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let select_task = conn.prepare_statement(sql::tasks::FETCH).await?;
+        let select_task = conn.prepare_cache(sql::tasks::FETCH).await?;
         let result = conn.query_one(&select_task, &[&id]).await;
 
         if let Ok(row) = result {
@@ -35,7 +39,7 @@ impl Repo {
         tracing::debug!("select_tasks");
 
         let mut conn = self.pool.get().await?;
-        let select_tasks = conn.prepare_statement(sql::tasks::SELECT).await?;
+        let select_tasks = conn.prepare_cache(sql::tasks::SELECT).await?;
 
         let tasks: Vec<_> = conn
             .query(&select_tasks, &[&story_id])
@@ -49,15 +53,18 @@ impl Repo {
 
     /// Insert a new task
     pub async fn insert_task(&self, story_id: i32, name: String) -> Result<Task> {
-        tracing::debug!("insert_task: {}", name);
+        tracing::debug!("insert_task: {}, {}", story_id, name);
 
         let mut conn = self.pool.get().await?;
-        let insert_task = conn.prepare_statement(sql::tasks::INSERT).await?;
+        let insert_task = conn.prepare_cache(sql::tasks::INSERT).await?;
 
-        let row = conn.query_one(&insert_task, &[&story_id, &name]).await?;
-        let task = Task::new(row.get(0), story_id, name, row.get(1));
+        let status: Status = Default::default();
+        let status_string = status.to_string();
+        let row = conn
+            .query_one(&insert_task, &[&story_id, &name, &status_string])
+            .await?;
 
-        Ok(task)
+        Ok(Task::new(row.get(0), story_id, name, status))
     }
 
     /// Delete a task.
@@ -65,7 +72,7 @@ impl Repo {
         tracing::debug!("delete_task: {}", id);
 
         let mut conn = self.pool.get().await?;
-        let delete_task = conn.prepare_statement(sql::tasks::DELETE).await?;
+        let delete_task = conn.prepare_cache(sql::tasks::DELETE).await?;
 
         conn.execute(&delete_task, &[&id])
             .await
@@ -77,12 +84,14 @@ impl Repo {
         tracing::debug!("update_task: {}, {}, {:?}", id, name, status);
 
         let mut conn = self.pool.get().await?;
-        let update_task = conn.prepare_statement(sql::tasks::UPDATE).await?;
+        let update_task = conn.prepare_cache(sql::tasks::UPDATE).await?;
 
-        let status = String::from(status);
-        let row = conn.query_one(&update_task, &[&name, &status, &id]).await?;
-        let task = Task::new(id, row.get(0), name, status);
+        let status_string = status.to_string();
+        let row = conn
+            .query_one(&update_task, &[&name, &status_string, &id])
+            .await?;
 
-        Ok(task)
+        // Note: only need story_id from db
+        Ok(Task::new(id, row.get(0), name, status))
     }
 }

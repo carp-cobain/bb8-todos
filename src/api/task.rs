@@ -71,12 +71,8 @@ async fn update_task(
 ) -> Result<impl IntoResponse> {
     tracing::info!("PATCH /tasks/{}", id);
     tracing::debug!("body = {:?}", body);
-
-    body.validate()?;
-    let task = ctx.repo.select_task(id).await?;
-
-    let (name, status) = body.unwrap(task);
-    let task = ctx.repo.update_task(id, name, status).await?;
-
-    Ok(Json(task))
+    let existing_task = ctx.repo.select_task(id).await?;
+    let (name, status) = body.validate(existing_task)?;
+    let updated_task = ctx.repo.update_task(id, name, status).await?;
+    Ok(Json(updated_task))
 }

@@ -1,12 +1,12 @@
 use crate::{
     api::{
-        dto::{StoryBody, StoryDto},
+        dto::{PagingParams, StoryBody, StoryDto},
         Ctx,
     },
     Result,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
@@ -38,9 +38,14 @@ async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<i
 }
 
 /// Get a page of stories
-async fn get_stories(State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
+async fn get_stories(
+    params: Option<Query<PagingParams>>,
+    State(ctx): State<Arc<Ctx>>,
+) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories");
-    let stories = ctx.repo.select_stories().await?;
+    let pid = params.unwrap_or_default().pid.unwrap_or(0);
+    tracing::debug!("paging id = {}", pid);
+    let stories = ctx.repo.select_stories(pid).await?;
     Ok(Json(stories))
 }
 
