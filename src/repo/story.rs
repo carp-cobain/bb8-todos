@@ -25,31 +25,12 @@ impl Repo {
         }
     }
 
-    /// Select a page of stories
-    pub async fn select_stories(&self, page_id: i32) -> Result<Vec<Story>> {
-        tracing::debug!("select_stories");
-
-        let mut conn = self.pool.get().await?;
-        let select_stories = conn.prepare_cache(sql::stories::SELECT).await?;
-
-        let stream = conn.query_raw(&select_stories, &[page_id]).await?;
-        pin!(stream);
-
-        let mut stories = Vec::with_capacity(PAGE_SIZE);
-        while let Some(result) = stream.next().await {
-            let row = result?;
-            stories.push(Story::new(row.get(0), row.get(1)));
-        }
-
-        Ok(stories)
-    }
-
     /// Select a page of stories with previous and next page cursors.
     pub async fn select_stories_page(&self, page_id: i32) -> Result<(i32, i32, Vec<Story>)> {
         tracing::debug!("select_stories");
 
         let mut conn = self.pool.get().await?;
-        let select_stories = conn.prepare_cache(sql::stories::SELECT_PAGE).await?;
+        let select_stories = conn.prepare_cache(sql::stories::SELECT).await?;
 
         let stream = conn.query_raw(&select_stories, &[page_id]).await?;
         pin!(stream);

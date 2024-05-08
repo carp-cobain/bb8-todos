@@ -16,7 +16,6 @@ use std::sync::Arc;
 /// API routes for stories
 pub fn routes() -> Router<Arc<Ctx>> {
     Router::new()
-        .route("/storiez", get(get_storiez).post(create_story))
         .route("/stories", get(get_stories).post(create_story))
         .route("/stories/:id/tasks", get(get_tasks))
         .route(
@@ -33,24 +32,18 @@ async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<i
 }
 
 /// Get tasks for a story
-async fn get_tasks(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
-    tracing::info!("GET /stories/{}/tasks", id);
-    let tasks = ctx.repo.select_tasks(id).await?;
-    Ok(Json(tasks))
-}
-
-/// Get a page of stories (supports forward paging only)
-async fn get_storiez(
+async fn get_tasks(
     params: Option<Query<PagingParams>>,
+    Path(id): Path<i32>,
     State(ctx): State<Arc<Ctx>>,
 ) -> Result<impl IntoResponse> {
-    tracing::info!("GET /storiez");
+    tracing::info!("GET /stories/{}/tasks", id);
 
     let page_id = params.unwrap_or_default().page_id.unwrap_or(1);
     tracing::debug!("page_id = {}", page_id);
 
-    let data = ctx.repo.select_stories(page_id).await?;
-    let next: i32 = data.iter().map(|s| s.id).max().unwrap_or_default() + 1;
+    let data = ctx.repo.select_tasks(id, page_id).await?;
+    let next: i32 = data.iter().map(|t| t.id).max().unwrap_or_default() + 1;
     let page = Page::new(1, next, data);
 
     Ok(Json(page))
