@@ -1,8 +1,6 @@
 use crate::{
-    api::{
-        dto::{PagingParams, StoryBody, StoryDto},
-        Ctx,
-    },
+    api::dto::{Page, PagingParams, StoryBody},
+    api::Ctx,
     Result,
 };
 use axum::{
@@ -12,13 +10,15 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use futures::{future::try_join, TryFutureExt};
+use futures::TryFutureExt;
 use std::sync::Arc;
 
 /// API routes for stories
 pub fn routes() -> Router<Arc<Ctx>> {
     Router::new()
+        .route("/storiez", get(get_storiez).post(create_story))
         .route("/stories", get(get_stories).post(create_story))
+        .route("/stories/:id/tasks", get(get_tasks))
         .route(
             "/stories/:id",
             get(get_story).delete(delete_story).patch(update_story),
@@ -28,13 +28,32 @@ pub fn routes() -> Router<Arc<Ctx>> {
 /// Get a story by id
 async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories/{}", id);
-    let (story, tasks) = try_join(ctx.repo.select_story(id), ctx.repo.select_tasks(id)).await?;
-    let dto = StoryDto {
-        id: story.id,
-        name: story.name,
-        tasks,
-    };
-    Ok(Json(dto))
+    let story = ctx.repo.select_story(id).await?;
+    Ok(Json(story))
+}
+
+/// Get tasks for a story
+async fn get_tasks(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<impl IntoResponse> {
+    tracing::info!("GET /stories/{}/tasks", id);
+    let tasks = ctx.repo.select_tasks(id).await?;
+    Ok(Json(tasks))
+}
+
+/// Get a page of stories (supports forward paging only)
+async fn get_storiez(
+    params: Option<Query<PagingParams>>,
+    State(ctx): State<Arc<Ctx>>,
+) -> Result<impl IntoResponse> {
+    tracing::info!("GET /storiez");
+
+    let page_id = params.unwrap_or_default().page_id.unwrap_or(1);
+    tracing::debug!("page_id = {}", page_id);
+
+    let data = ctx.repo.select_stories(page_id).await?;
+    let next: i32 = data.iter().map(|s| s.id).max().unwrap_or_default() + 1;
+    let page = Page::new(1, next, data);
+
+    Ok(Json(page))
 }
 
 /// Get a page of stories
@@ -43,10 +62,14 @@ async fn get_stories(
     State(ctx): State<Arc<Ctx>>,
 ) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories");
-    let pid = params.unwrap_or_default().pid.unwrap_or(0);
-    tracing::debug!("paging id = {}", pid);
-    let stories = ctx.repo.select_stories(pid).await?;
-    Ok(Json(stories))
+
+    let page_id = params.unwrap_or_default().page_id.unwrap_or(1);
+    tracing::debug!("page_id = {}", page_id);
+
+    let (prev, next, data) = ctx.repo.select_stories_page(page_id).await?;
+    let page = Page::new(prev, next, data);
+
+    Ok(Json(page))
 }
 
 /// Create a new story

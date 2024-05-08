@@ -1,5 +1,29 @@
 pub const FETCH: &str = "select id, name from stories where id = $1";
-pub const SELECT: &str = "select id, name from stories where id > $1 order by id limit 10";
+pub const SELECT: &str = "select id, name from stories where id >= $1 order by id limit 10";
 pub const INSERT: &str = "insert into stories (name) values ($1) returning id";
 pub const DELETE: &str = "delete from stories where id = $1";
 pub const UPDATE: &str = "update stories set name = $1 where id = $2";
+
+pub const SELECT_PAGE: &str = r#"
+with cursor as (
+    select id from stories
+    where id = $1
+    order by id limit 1
+), previous_page as (
+    select id, name from stories
+    where id < (select id from cursor)
+    order by id desc limit 10
+), current_next_page as (
+    select id, name from stories
+    where id >= (select id from cursor)
+    order by id limit 11
+) (
+    select id, name, 'prev' as label from previous_page
+    order by id limit 1
+) union all (
+    select id, name, 'current' as label from current_next_page
+    order by id limit 10
+) union all (
+    select id, name, 'next' as label from current_next_page
+    order by id limit 1 offset 10
+)"#;

@@ -36,7 +36,7 @@ impl Repo {
 
     /// Select a page of tasks for a story.
     pub async fn select_tasks(&self, story_id: i32) -> Result<Vec<Task>> {
-        tracing::debug!("select_tasks");
+        tracing::debug!("select_tasks: {}", story_id);
 
         let mut conn = self.pool.get().await?;
         let select_tasks = conn.prepare_cache(sql::tasks::SELECT).await?;

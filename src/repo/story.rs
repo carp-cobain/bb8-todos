@@ -4,6 +4,8 @@ use tokio::pin;
 
 use crate::db::sql;
 
+const PAGE_SIZE: usize = 10;
+
 impl Repo {
     /// Select a story by id
     pub async fn select_story(&self, id: i32) -> Result<Story> {
@@ -24,22 +26,54 @@ impl Repo {
     }
 
     /// Select a page of stories
-    pub async fn select_stories(&self, paging_id: i32) -> Result<Vec<Story>> {
+    pub async fn select_stories(&self, page_id: i32) -> Result<Vec<Story>> {
         tracing::debug!("select_stories");
 
         let mut conn = self.pool.get().await?;
         let select_stories = conn.prepare_cache(sql::stories::SELECT).await?;
 
-        let stream = conn.query_raw(&select_stories, &[paging_id]).await?;
+        let stream = conn.query_raw(&select_stories, &[page_id]).await?;
         pin!(stream);
 
-        let mut stories = Vec::with_capacity(10);
+        let mut stories = Vec::with_capacity(PAGE_SIZE);
         while let Some(result) = stream.next().await {
             let row = result?;
             stories.push(Story::new(row.get(0), row.get(1)));
         }
 
         Ok(stories)
+    }
+
+    /// Select a page of stories with previous and next page cursors.
+    pub async fn select_stories_page(&self, page_id: i32) -> Result<(i32, i32, Vec<Story>)> {
+        tracing::debug!("select_stories");
+
+        let mut conn = self.pool.get().await?;
+        let select_stories = conn.prepare_cache(sql::stories::SELECT_PAGE).await?;
+
+        let stream = conn.query_raw(&select_stories, &[page_id]).await?;
+        pin!(stream);
+
+        let mut prev_pid: i32 = 1;
+        let mut next_pid: i32 = 1;
+        let mut stories = Vec::with_capacity(PAGE_SIZE);
+
+        while let Some(result) = stream.next().await {
+            let row = result?;
+            let label: &str = row.get(2);
+
+            if label == "current" {
+                stories.push(Story::new(row.get(0), row.get(1)));
+            } else if label == "prev" {
+                prev_pid = row.get(0);
+            } else if label == "next" {
+                next_pid = row.get(0);
+            } else {
+                tracing::warn!("unknown page label: {}", label);
+            }
+        }
+
+        Ok((prev_pid, next_pid, stories))
     }
 
     /// Insert a new story

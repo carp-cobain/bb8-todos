@@ -9,12 +9,23 @@ use std::str::FromStr;
 /// Limit name size in http request body.
 const MAX_NAME_LEN: usize = 100;
 
-/// Combine a story with its tasks to send to the client.
+/// A page of domain objects
 #[derive(Debug, Serialize)]
-pub struct StoryDto {
-    pub id: i32,
-    pub name: String,
-    pub tasks: Vec<Task>,
+pub struct Page<T: Serialize> {
+    pub prev_page_id: i32,
+    pub next_page_id: i32,
+    pub data: Vec<T>,
+}
+
+impl<T: Serialize> Page<T> {
+    // Create a new page of domain objects
+    pub fn new(prev_page_id: i32, next_page_id: i32, data: Vec<T>) -> Self {
+        Self {
+            prev_page_id,
+            next_page_id,
+            data,
+        }
+    }
 }
 
 /// The request body for creating or updating stories
@@ -116,5 +127,5 @@ impl PatchTaskBody {
 #[derive(Debug, Deserialize, Default)]
 pub struct PagingParams {
     // Page id (last accessed page's max id)
-    pub pid: Option<i32>,
+    pub page_id: Option<i32>,
 }
