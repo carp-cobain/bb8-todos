@@ -2,31 +2,12 @@ use crate::{
     domain::{Status, Task},
     Error, Result,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt::Debug;
 use std::str::FromStr;
 
 /// Limit name size in http request body.
 const MAX_NAME_LEN: usize = 100;
-
-/// A page of domain objects
-#[derive(Debug, Serialize)]
-pub struct Page<T: Serialize> {
-    pub prev_page_id: i32,
-    pub next_page_id: i32,
-    pub data: Vec<T>,
-}
-
-impl<T: Serialize> Page<T> {
-    // Create a new page of domain objects
-    pub fn new(prev_page_id: i32, next_page_id: i32, data: Vec<T>) -> Self {
-        Self {
-            prev_page_id,
-            next_page_id,
-            data,
-        }
-    }
-}
 
 /// The request body for creating or updating stories
 #[derive(Debug, Deserialize)]
@@ -121,11 +102,4 @@ impl PatchTaskBody {
             Err(Error::InvalidArgs { messages })
         }
     }
-}
-
-// The query parameters for getting a page of rows
-#[derive(Debug, Deserialize, Default)]
-pub struct PagingParams {
-    // Page id (last accessed page's max id)
-    pub page_id: Option<i32>,
 }

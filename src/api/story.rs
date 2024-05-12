@@ -1,5 +1,6 @@
 use crate::{
-    api::dto::{Page, PagingParams, StoryBody},
+    api::dto::StoryBody,
+    api::paging::{Page, PageParams, PageToken},
     api::Ctx,
     Result,
 };
@@ -33,34 +34,38 @@ async fn get_story(Path(id): Path<i32>, State(ctx): State<Arc<Ctx>>) -> Result<i
 
 /// Get tasks for a story
 async fn get_tasks(
-    params: Option<Query<PagingParams>>,
+    params: Option<Query<PageParams>>,
     Path(id): Path<i32>,
     State(ctx): State<Arc<Ctx>>,
 ) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories/{}/tasks", id);
 
-    let page_id = params.unwrap_or_default().page_id.unwrap_or(1);
-    tracing::debug!("page_id = {}", page_id);
+    // Determine page to query
+    let q = params.unwrap_or_default();
+    let page_id = PageToken::decode(q.page_token.clone())?;
 
+    // Query and create page
     let data = ctx.repo.select_tasks(id, page_id).await?;
-    let next: i32 = data.iter().map(|t| t.id).max().unwrap_or_default() + 1;
-    let page = Page::new(1, next, data);
+    let next = data.last().and_then(|t| PageToken::encode(t.id + 1));
+    let page = Page::new(None, next, data);
 
     Ok(Json(page))
 }
 
 /// Get a page of stories
 async fn get_stories(
-    params: Option<Query<PagingParams>>,
+    params: Option<Query<PageParams>>,
     State(ctx): State<Arc<Ctx>>,
 ) -> Result<impl IntoResponse> {
     tracing::info!("GET /stories");
 
-    let page_id = params.unwrap_or_default().page_id.unwrap_or(1);
-    tracing::debug!("page_id = {}", page_id);
+    // Determine page to query
+    let q = params.unwrap_or_default();
+    let page_id = PageToken::decode(q.page_token.clone())?;
 
-    let (prev, next, data) = ctx.repo.select_stories_page(page_id).await?;
-    let page = Page::new(prev, next, data);
+    // Query and create page
+    let (prev, next, data) = ctx.repo.select_stories(page_id).await?;
+    let page = Page::new(PageToken::encode(prev), PageToken::encode(next), data);
 
     Ok(Json(page))
 }

@@ -4,7 +4,7 @@ use tokio::pin;
 
 use crate::db::sql;
 
-const PAGE_SIZE: usize = 10;
+const PAGE_SIZE: usize = 100;
 
 impl Repo {
     /// Select a story by id
@@ -26,7 +26,7 @@ impl Repo {
     }
 
     /// Select a page of stories with previous and next page cursors.
-    pub async fn select_stories_page(&self, page_id: i32) -> Result<(i32, i32, Vec<Story>)> {
+    pub async fn select_stories(&self, page_id: i32) -> Result<(i32, i32, Vec<Story>)> {
         tracing::debug!("select_stories");
 
         let mut conn = self.pool.get().await?;
@@ -35,8 +35,8 @@ impl Repo {
         let stream = conn.query_raw(&select_stories, &[page_id]).await?;
         pin!(stream);
 
-        let mut prev_pid: i32 = 1;
-        let mut next_pid: i32 = 1;
+        let mut prev_pid: i32 = 0;
+        let mut next_pid: i32 = 0;
         let mut stories = Vec::with_capacity(PAGE_SIZE);
 
         while let Some(result) = stream.next().await {
