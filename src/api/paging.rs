@@ -5,6 +5,7 @@ use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tracing::{event, span, Level};
 
 /// One hour in milliseconds
 const ONE_HOUR_MILLIS: u128 = 3600000;
@@ -47,22 +48,33 @@ pub struct PageToken {
 impl PageToken {
     /// Encode a page id as a token.
     pub fn encode(page_id: i32) -> Option<String> {
+        let _span = span!(Level::DEBUG, "PageToken::encode").entered();
         if page_id <= 0 {
             return None;
         }
+        event!(Level::DEBUG, "start");
         let token = PageToken::new(page_id);
+        event!(Level::DEBUG, "created");
         let bytes = borsh::to_vec(&token).unwrap_or_default();
-        Some(URL_SAFE.encode(bytes))
+        event!(Level::DEBUG, "borsh serialized");
+        let bytes = URL_SAFE.encode(bytes);
+        event!(Level::DEBUG, "b64 encoded");
+        Some(bytes)
     }
 
     /// Extract page id from encoded token param
     pub fn decode(token: Option<String>) -> Result<i32> {
+        let _span = span!(Level::DEBUG, "PageToken::decode").entered();
         match token {
             None => Ok(1),
             Some(token) => {
+                event!(Level::DEBUG, "start");
                 let bytes = URL_SAFE.decode(token)?;
+                event!(Level::DEBUG, "b64 decoded");
                 let page_token: PageToken = borsh::from_slice(&bytes).unwrap();
+                event!(Level::DEBUG, "borsh deserialized");
                 page_token.verify()?;
+                event!(Level::DEBUG, "verified");
                 Ok(page_token.id)
             }
         }
@@ -72,7 +84,8 @@ impl PageToken {
         let ts = now();
         let msg = Msg::bytes(id, ts);
         let signer: Signer = Default::default();
-        let sig = signer.sign(&msg).unwrap_or_default();
+        let sig = signer.sign(&msg);
+        event!(Level::DEBUG, "signed");
         Self { id, ts, sig }
     }
 
@@ -81,11 +94,13 @@ impl PageToken {
         let msg = Msg::bytes(self.id, self.ts);
         let verifier: Verifier = Default::default();
         verifier.verify(&msg, &self.sig)?;
+        event!(Level::DEBUG, "signature verified");
 
         // Check for expiriration
         if now() - self.ts > ONE_HOUR_MILLIS {
             return Err(Error::invalid_args("page token expired"));
         }
+        event!(Level::DEBUG, "timestamp verified");
 
         Ok(())
     }
