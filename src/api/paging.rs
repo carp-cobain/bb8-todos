@@ -1,4 +1,4 @@
-use crate::signer::{Signer, Verifier};
+//use crate::signer::{Signer, Verifier};
 use crate::{Error, Result};
 
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
@@ -42,7 +42,7 @@ impl<T: Serialize> Page<T> {
 pub struct PageToken {
     pub id: i32,
     pub ts: u128,
-    pub sig: Vec<u8>,
+    //pub sig: Vec<u8>,
 }
 
 impl PageToken {
@@ -82,19 +82,22 @@ impl PageToken {
 
     fn new(id: i32) -> Self {
         let ts = now();
-        let msg = Msg::bytes(id, ts);
-        let signer: Signer = Default::default();
-        let sig = signer.sign(&msg);
-        event!(Level::DEBUG, "signed");
-        Self { id, ts, sig }
+        //let msg = Msg::bytes(id, ts);
+        //let signer: Signer = Default::default();
+        //let sig = Default::default(); //signer.sign(&msg);
+        //event!(Level::DEBUG, "signed");
+        Self {
+            id,
+            ts, /*sig*/
+        }
     }
 
     fn verify(&self) -> Result<()> {
         // Check signature first
-        let msg = Msg::bytes(self.id, self.ts);
-        let verifier: Verifier = Default::default();
-        verifier.verify(&msg, &self.sig)?;
-        event!(Level::DEBUG, "signature verified");
+        //let msg = Msg::bytes(self.id, self.ts);
+        //let verifier: Verifier = Default::default();
+        //verifier.verify(&msg, &self.sig)?;
+        //event!(Level::DEBUG, "signature verified");
 
         // Check for expiriration
         if now() - self.ts > ONE_HOUR_MILLIS {
@@ -107,18 +110,18 @@ impl PageToken {
 }
 
 /// Message for signing / verification
-#[derive(BorshSerialize)]
-struct Msg {
-    id: i32,
-    ts: u128,
-}
+// #[derive(BorshSerialize)]
+// struct Msg {
+//     id: i32,
+//     ts: u128,
+// }
 
-impl Msg {
-    /// Create a binary signing message
-    fn bytes(id: i32, ts: u128) -> Vec<u8> {
-        borsh::to_vec(&Msg { id, ts }).unwrap_or_default()
-    }
-}
+// impl Msg {
+//     /// Create a binary signing message
+//     fn bytes(id: i32, ts: u128) -> Vec<u8> {
+//         borsh::to_vec(&Msg { id, ts }).unwrap_or_default()
+//     }
+// }
 
 /// Calculate the number of milliseconds since the unix epoch.
 fn now() -> u128 {
