@@ -37,12 +37,6 @@ impl From<base64::DecodeError> for Error {
     }
 }
 
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
-        Error::internal(err.to_string())
-    }
-}
-
 impl From<pkcs8::Error> for Error {
     fn from(err: pkcs8::Error) -> Self {
         Error::internal(err.to_string())
