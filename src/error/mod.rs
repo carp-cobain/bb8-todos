@@ -1,5 +1,3 @@
-use ed25519_dalek::pkcs8;
-
 // Http response support for errors
 mod http;
 
@@ -33,18 +31,6 @@ impl Error {
 
 impl From<base64::DecodeError> for Error {
     fn from(err: base64::DecodeError) -> Self {
-        Error::internal(err.to_string())
-    }
-}
-
-impl From<pkcs8::Error> for Error {
-    fn from(err: pkcs8::Error) -> Self {
-        Error::internal(err.to_string())
-    }
-}
-
-impl From<ed25519_dalek::ed25519::signature::Error> for Error {
-    fn from(err: ed25519_dalek::ed25519::signature::Error) -> Self {
         Error::internal(err.to_string())
     }
 }

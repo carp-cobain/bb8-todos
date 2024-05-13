@@ -1,4 +1,3 @@
-use crate::signer::{Signer, Verifier};
 use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
 
@@ -34,10 +33,6 @@ impl Config {
                 .parse()
                 .expect("DATABASE_MAX_POOL_SIZE could not be parsed")
         }
-
-        // verify signing key env vars are set and valid
-        let _: Signer = Default::default();
-        let _: Verifier = Default::default();
 
         Self {
             listen_addr,

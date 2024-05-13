@@ -17,7 +17,6 @@ bb8-postgres = "0.8"
 borsh = { version = "1", features = ["derive"] }
 borsh-derive = "1"
 dotenvy = "0.15"
-ed25519-dalek = { version = "2", features = ["pkcs8", "pem"] }
 futures = "0.3"
 futures-util = "0.3"
 mimalloc = { version = "0.1", default-features = false }

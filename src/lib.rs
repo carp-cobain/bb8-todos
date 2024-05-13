@@ -16,9 +16,6 @@ pub mod domain;
 // project errors
 pub mod error;
 
-// Signing and verification
-pub mod signer;
-
 // Expose error at top level
 pub use error::Error;
 
