@@ -47,7 +47,7 @@ impl PageToken {
         if let Ok(bytes) = borsh::to_vec(&PageToken { id, ts: now() }) {
             Some(URL_SAFE.encode(bytes))
         } else {
-            tracing::warn!("failed encoding page id: {}", id);
+            tracing::warn!("failed serializing page token: {}", id);
             None
         }
     }

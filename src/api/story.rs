@@ -1,6 +1,6 @@
 use crate::{
     api::dto::StoryBody,
-    api::paging::{Page, PageParams, PageToken},
+    api::page::{Page, PageParams, PageToken},
     api::Ctx,
     Result,
 };
