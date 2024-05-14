@@ -1,9 +1,8 @@
-use crate::Result;
+use crate::{Error, Result};
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tracing::{event, span, Level};
 
 /// The query parameters for getting a page of domain objects from a list endpoint.
 #[derive(Debug, Deserialize, Default)]
@@ -36,51 +35,41 @@ impl<T: Serialize> Page<T> {
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct PageToken {
     pub id: i32,
-    pub ts: u128,
+    pub ts: u64,
 }
 
 impl PageToken {
-    /// Encode a page id as a token.
-    pub fn encode(page_id: i32) -> Option<String> {
-        let _span = span!(Level::DEBUG, "PageToken::encode").entered();
-        if page_id <= 0 {
+    /// Encode a cursor id as a page token.
+    pub fn encode(id: i32) -> Option<String> {
+        if id <= 0 {
             return None;
         }
-        event!(Level::DEBUG, "start");
-        let token = PageToken::new(page_id);
-        event!(Level::DEBUG, "created");
-        let bytes = borsh::to_vec(&token).unwrap_or_default();
-        event!(Level::DEBUG, "borsh serialized");
-        let bytes = URL_SAFE.encode(bytes);
-        event!(Level::DEBUG, "b64 encoded");
-        Some(bytes)
+        if let Ok(bytes) = borsh::to_vec(&PageToken { id, ts: now() }) {
+            Some(URL_SAFE.encode(bytes))
+        } else {
+            tracing::warn!("failed encoding page id: {}", id);
+            None
+        }
     }
 
     /// Extract page id from encoded token param
-    pub fn decode(token: Option<String>) -> Result<i32> {
-        let _span = span!(Level::DEBUG, "PageToken::decode").entered();
-        match token {
+    pub fn decode(token_opt: Option<String>) -> Result<i32> {
+        match token_opt {
             None => Ok(1),
             Some(token) => {
-                event!(Level::DEBUG, "start");
                 let bytes = URL_SAFE.decode(token)?;
-                event!(Level::DEBUG, "b64 decoded");
-                let page_token: PageToken = borsh::from_slice(&bytes).unwrap();
-                event!(Level::DEBUG, "borsh deserialized");
+                let page_token: PageToken = borsh::from_slice(&bytes)
+                    .map_err(|_| Error::invalid_args("invalid page token encoding"))?;
                 Ok(page_token.id)
             }
         }
     }
-
-    fn new(id: i32) -> Self {
-        Self { id, ts: now() }
-    }
 }
 
-/// Calculate the number of milliseconds since the unix epoch.
-fn now() -> u128 {
+/// Calculate the number of seconds since the unix epoch.
+fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::MAX)
-        .as_millis()
+        .as_secs()
 }
